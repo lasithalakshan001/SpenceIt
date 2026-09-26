@@ -1,6 +1,5 @@
 package com.example.spenceit.ui.theme.screens
 
-
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -8,65 +7,76 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.spenceit.viewmodel.AuthState
+import com.example.spenceit.viewmodel.AuthViewModel
 
 @Composable
 fun LoginScreen(
     modifier: Modifier = Modifier,
     onNavigateToRegister: () -> Unit,
-    onLoginSuccess: () -> Unit
+    onLoginSuccess: () -> Unit,
+    viewModel: AuthViewModel = viewModel() // 1. Bring in the ViewModel
 ) {
-    // 1. STATE: The memory of what the user is typing
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var localError by remember { mutableStateOf("") }
 
-    // 2. COLUMN: The container that stacks things from top to bottom
+    // 2. Listen to Firebase's response
+    val authState by viewModel.authState.collectAsState()
+
+    // 3. Automatically go to Home if Firebase says "Success"
+    LaunchedEffect(authState) {
+        if (authState is AuthState.Success) {
+            onLoginSuccess()
+        }
+    }
+
     Column(
-        modifier = modifier
-            .fillMaxSize() // Take up the whole screen
-            .padding(16.dp), // Keep a 16-pixel gap from the phone edges
-        verticalArrangement = Arrangement.Center, // Push everything to the middle vertically
-        horizontalAlignment = Alignment.CenterHorizontally // Center everything horizontally
+        modifier = modifier.fillMaxSize().padding(16.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-
-        Text(
-            text = "Welcome to SpenceIt",
-            style = MaterialTheme.typography.headlineMedium
-        )
-
-        Spacer(modifier = Modifier.height(32.dp)) // An invisible box to create space
-
-        // 3. EMAIL FIELD
-        OutlinedTextField(
-            value = email, // What the box currently displays
-            onValueChange = { newText -> email = newText }, // When the user types, update the State
-            label = { Text("Email") }, // The little hint text
-            modifier = Modifier.fillMaxWidth() // Stretch across the screen
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // 4. PASSWORD FIELD
-        OutlinedTextField(
-            value = password,
-            onValueChange = { newText -> password = newText },
-            label = { Text("Password") },
-            visualTransformation = PasswordVisualTransformation(), // Turns text into dots
-            modifier = Modifier.fillMaxWidth()
-        )
-
+        Text("Welcome to SpenceIt", style = MaterialTheme.typography.headlineMedium)
         Spacer(modifier = Modifier.height(32.dp))
 
-        // 5. LOGIN BUTTON
+        OutlinedTextField(value = email, onValueChange = { email = it }, label = { Text("Email") }, modifier = Modifier.fillMaxWidth())
+        Spacer(modifier = Modifier.height(16.dp))
+
+        OutlinedTextField(value = password, onValueChange = { password = it }, label = { Text("Password") }, visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // 4. Show errors (e.g., "Wrong password")
+        if (localError.isNotEmpty()) {
+            Text(text = localError, color = MaterialTheme.colorScheme.error)
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+        if (authState is AuthState.Error) {
+            Text(text = (authState as AuthState.Error).message, color = MaterialTheme.colorScheme.error)
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
+        // 5. The Login Button
         Button(
             onClick = {
-                // We will tell the ViewModel to authenticate the user here later
-                println("User tried to login with: $email")
-                onLoginSuccess()
+                localError = ""
+                if (email.isNotEmpty() && password.isNotEmpty()) {
+                    viewModel.login(email, password) // Send data to Firebase
+                } else {
+                    localError = "Please enter both email and password"
+                }
             },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            enabled = authState !is AuthState.Loading // Prevent double-clicking
         ) {
-            Text("Login")
+            if (authState is AuthState.Loading) {
+                CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
+            } else {
+                Text("Login")
+            }
         }
+
+        Spacer(modifier = Modifier.height(16.dp))
 
         TextButton(onClick = onNavigateToRegister) {
             Text("Don't have an account? Register here")

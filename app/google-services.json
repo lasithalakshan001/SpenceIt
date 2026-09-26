@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "620048121965",
+    "project_id": "spenceit-bf1df",
+    "storage_bucket": "spenceit-bf1df.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:620048121965:android:d10a468a0904fe3248ff64",
+        "android_client_info": {
+          "package_name": "com.example.spenceit"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC4b3FKt7b6qRYrBGTprjuyLzcOhMIjjDI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

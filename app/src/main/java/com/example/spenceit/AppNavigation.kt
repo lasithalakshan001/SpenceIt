@@ -15,6 +15,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.lifecycle.viewmodel.compose.viewModel // NEEDED FOR VIEWMODEL
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -23,15 +24,27 @@ import androidx.navigation.compose.rememberNavController
 import com.example.spenceit.ui.theme.screens.HomeScreen
 import com.example.spenceit.ui.theme.screens.LoginScreen
 import com.example.spenceit.ui.theme.screens.RegisterScreen
+import com.example.spenceit.ui.theme.screens.GroupsScreen
+import com.example.spenceit.ui.theme.screens.MoreScreen
+import com.example.spenceit.ui.theme.screens.AddScreen
+import com.example.spenceit.ui.theme.screens.DebtsScreen
+import com.example.spenceit.ui.theme.screens.GroupDetailScreen
+import com.example.spenceit.ui.theme.screens.FriendDetailScreen
+import com.example.spenceit.viewmodel.GroupsViewModel
+import com.example.spenceit.viewmodel.FriendsViewModel
+import com.example.spenceit.viewmodel.DebtsViewModel
 
-// 1. A blueprint for what a Bottom Tab needs
 data class BottomNavItem(val title: String, val route: String, val icon: ImageVector)
 
 @Composable
 fun AppNavigation(modifier: Modifier = Modifier) {
     val navController = rememberNavController()
 
-    // 2. The list of tabs in your master specification
+    // 1. Create ONE master instance of the GroupsViewModel here
+    val sharedGroupsViewModel: GroupsViewModel = viewModel()
+    val sharedFriendsViewModel: FriendsViewModel = viewModel() // <-- ADD THIS
+    val sharedDebtsViewModel: DebtsViewModel = viewModel()
+
     val items = listOf(
         BottomNavItem("Home", "home", Icons.Default.Home),
         BottomNavItem("Groups", "groups", Icons.Default.Person),
@@ -40,11 +53,8 @@ fun AppNavigation(modifier: Modifier = Modifier) {
         BottomNavItem("More", "more", Icons.Default.Menu)
     )
 
-    // 3. The GPS: Tracks exactly which screen the user is currently on
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
-
-    // 4. Logic: Should we show the bottom bar? (False if on login/register)
     val showBottomBar = currentRoute in listOf("home", "groups", "add", "debts", "more")
 
     Scaffold(
@@ -56,11 +66,9 @@ fun AppNavigation(modifier: Modifier = Modifier) {
                         NavigationBarItem(
                             icon = { Icon(imageVector = item.icon, contentDescription = item.title) },
                             label = { Text(item.title) },
-                            selected = currentRoute == item.route, // Highlights the active tab
+                            selected = currentRoute == item.route,
                             onClick = {
-                                // 5. The Taxi Driver takes us to the clicked tab
                                 navController.navigate(item.route) {
-                                    // This prevents the app from opening 50 Home screens if the user spams the Home button
                                     popUpTo(navController.graph.findStartDestination().id) { saveState = true }
                                     launchSingleTop = true
                                     restoreState = true
@@ -72,8 +80,6 @@ fun AppNavigation(modifier: Modifier = Modifier) {
             }
         }
     ) { innerPadding ->
-
-        // 6. The Map (NavHost) is now INSIDE the Scaffold padding
         NavHost(
             navController = navController,
             startDestination = "login",
@@ -85,19 +91,81 @@ fun AppNavigation(modifier: Modifier = Modifier) {
                     onLoginSuccess = { navController.navigate("home") }
                 )
             }
-            composable("register") { RegisterScreen() }
-            composable("home") { HomeScreen() }
+            composable("register") { RegisterScreen(onRegisterSuccess = { navController.navigate("home") }) }
+            composable("home") {
+                HomeScreen(
+                    onNavigateToGroups = {
+                        // Simulate a click on the bottom navigation bar to keep the state in sync
+                        navController.navigate("groups") {
+                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    },
+                    onNavigateToAdd = {
+                        navController.navigate("add") {
+                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    },
+                    onNavigateToDebts = {
+                        navController.navigate("debts") {
+                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    },
+                    onGroupClick = { groupId -> navController.navigate("group_detail/$groupId") },
+                    debtsViewModel = sharedDebtsViewModel,
+                    groupsViewModel = sharedGroupsViewModel
+                )
+            }
 
-            // Placeholder screens so the app doesn't crash when you click a tab
-            composable("groups") { PlaceholderScreen("Groups & Friends") }
-            composable("add") { PlaceholderScreen("Add Transaction") }
-            composable("debts") { PlaceholderScreen("My Debts") }
-            composable("more") { PlaceholderScreen("Settings & Reports") }
+            composable("groups") {
+                GroupsScreen(
+                    onGroupClick = { groupId -> navController.navigate("group_detail/$groupId") },
+                    onFriendClick = { friendUid -> navController.navigate("friend_detail/$friendUid") },
+                    friendsViewModel = sharedFriendsViewModel,
+                    groupsViewModel = sharedGroupsViewModel, // 2. Pass the shared instance
+                    debtsViewModel = sharedDebtsViewModel
+                )
+            }
+
+            composable("group_detail/{groupId}") { backStackEntry ->
+                val groupId = backStackEntry.arguments?.getString("groupId") ?: return@composable
+                GroupDetailScreen(
+                    groupId = groupId,
+                    onNavigateBack = { navController.popBackStack() },
+                    groupsViewModel = sharedGroupsViewModel // 3. Pass the exact same shared instance!
+                )
+            }
+
+            composable("add") { AddScreen() }
+            composable("debts") { DebtsScreen(
+                debtsViewModel = sharedDebtsViewModel
+            ) }
+
+            composable("friend_detail/{friendUid}") { backStackEntry ->
+                val friendUid = backStackEntry.arguments?.getString("friendUid") ?: return@composable
+                FriendDetailScreen(
+                    friendUid = friendUid,
+                    onNavigateBack = { navController.popBackStack() },
+                    friendsViewModel = sharedFriendsViewModel,
+                    debtsViewModel = sharedDebtsViewModel
+                )
+            }
+            composable("more") {
+                MoreScreen(
+                    onLogoutSuccess = {
+                        navController.navigate("login") { popUpTo(0) { inclusive = true } }
+                    }
+                )
+            }
         }
     }
 }
 
-// A temporary UI function just to show text on our unfinished screens
 @Composable
 fun PlaceholderScreen(title: String) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
