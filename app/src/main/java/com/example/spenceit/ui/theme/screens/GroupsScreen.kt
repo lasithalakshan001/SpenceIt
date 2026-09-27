@@ -125,9 +125,6 @@ fun GroupsScreen(
                 }
                 2 -> {
                     LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        item {
-                            Text(text = "System Status: $debugText", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 16.dp))
-                        }
                         if (liveRequests.isEmpty()) {
                             item { Text("No pending friend requests.", modifier = Modifier.padding(16.dp)) }
                         }

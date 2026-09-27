@@ -29,14 +29,23 @@ fun FriendDetailScreen(
     val friend = myFriends.find { it.uid == friendUid }
 
     val allDebts by debtsViewModel.activeDebts.collectAsState()
-    val sharedDebts = allDebts.filter { it.otherPersonUid == friendUid && it.status == "active" }
+    val sharedDebts = allDebts.filter {
+        it.otherPersonUid == friendUid &&
+                (it.status == "active" || it.status == "pending_approval")
+    }
 
     var totalIOweThem = 0.0
     var totalTheyOweMe = 0.0
 
     sharedDebts.forEach { debt ->
-        if (debt.iOweThem) totalIOweThem += debt.amount
-        else totalTheyOweMe += debt.amount
+        // 2. Payments act as credits, so the math flips
+        if (debt.description.startsWith("[PAYMENT]")) {
+            if (debt.iOweThem) totalTheyOweMe += debt.amount
+            else totalIOweThem += debt.amount
+        } else {
+            if (debt.iOweThem) totalIOweThem += debt.amount
+            else totalTheyOweMe += debt.amount
+        }
     }
 
     val netBalance = totalTheyOweMe - totalIOweThem

@@ -21,6 +21,9 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.runtime.mutableStateOf
+
 import com.example.spenceit.ui.theme.screens.HomeScreen
 import com.example.spenceit.ui.theme.screens.LoginScreen
 import com.example.spenceit.ui.theme.screens.RegisterScreen
@@ -33,12 +36,41 @@ import com.example.spenceit.ui.theme.screens.FriendDetailScreen
 import com.example.spenceit.viewmodel.GroupsViewModel
 import com.example.spenceit.viewmodel.FriendsViewModel
 import com.example.spenceit.viewmodel.DebtsViewModel
+import com.google.firebase.auth.FirebaseAuth
+
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 
 data class BottomNavItem(val title: String, val route: String, val icon: ImageVector)
 
 @Composable
 fun AppNavigation(modifier: Modifier = Modifier) {
     val navController = rememberNavController()
+
+
+
+    var startDestination by remember { mutableStateOf<String?>(null) }
+
+    // 2. Listen to Firebase in the background the moment the app launches
+    LaunchedEffect(Unit) {
+        val auth = FirebaseAuth.getInstance()
+        auth.addAuthStateListener { firebaseAuth ->
+            if (firebaseAuth.currentUser != null) {
+                startDestination = "home"
+            } else {
+                startDestination = "login"
+            }
+        }
+    }
+
+    // 3. Show a quick loading spinner for the millisecond it takes Firebase to read the disk
+    if (startDestination == null) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+        return // Stop here until Firebase answers!
+    }
 
     // 1. Create ONE master instance of the GroupsViewModel here
     val sharedGroupsViewModel: GroupsViewModel = viewModel()
@@ -82,7 +114,7 @@ fun AppNavigation(modifier: Modifier = Modifier) {
     ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = "login",
+            startDestination = startDestination!!,
             modifier = Modifier.padding(innerPadding)
         ) {
             composable("login") {
@@ -137,7 +169,8 @@ fun AppNavigation(modifier: Modifier = Modifier) {
                 GroupDetailScreen(
                     groupId = groupId,
                     onNavigateBack = { navController.popBackStack() },
-                    groupsViewModel = sharedGroupsViewModel // 3. Pass the exact same shared instance!
+                    groupsViewModel = sharedGroupsViewModel,
+                    friendsViewModel = sharedFriendsViewModel // <-- ADD THIS LINE
                 )
             }
 

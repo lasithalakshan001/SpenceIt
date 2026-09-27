@@ -132,6 +132,25 @@ class GroupsViewModel : ViewModel() {
         }
     }
 
+    // --- NEW: Group Management Functions ---
+
+    fun deleteGroup(groupId: String) {
+        db.collection("groups").document(groupId).delete()
+    }
+
+    fun addMembersToGroup(groupId: String, newMemberUids: List<String>) {
+        if (newMemberUids.isEmpty()) return
+        // FieldValue.arrayUnion adds elements to the array without duplicating existing ones
+        db.collection("groups").document(groupId)
+            .update("members", com.google.firebase.firestore.FieldValue.arrayUnion(*newMemberUids.toTypedArray()))
+    }
+
+    fun removeMemberFromGroup(groupId: String, memberUidToRemove: String) {
+        // FieldValue.arrayRemove pulls a specific element out of the array
+        db.collection("groups").document(groupId)
+            .update("members", com.google.firebase.firestore.FieldValue.arrayRemove(memberUidToRemove))
+    }
+
     override fun onCleared() {
         super.onCleared()
         snapshotListener?.remove()
